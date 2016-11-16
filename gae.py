@@ -8,6 +8,7 @@ import click
 
 @click.group()
 def gae():
+    # before hook
     pass
 
 
@@ -22,7 +23,13 @@ def hello(count, name):
 
 
 @gae.command()
-def interactive():
+@click.option('-c', '--code', 'code', nargs=1, type=click.STRING)
+@click.option('-f', '--file', 'f', nargs=1, type=click.File('rb'))
+def interactive(code, f):
+    """Run code in dev server's interactive console"""
+    if not code and not f:
+        click.echo("[Error] Use --code or --file\n")
+        return
     url = "http://localhost:8000/console"
     try:
         response = urllib2.urlopen(url)
@@ -36,8 +43,14 @@ def interactive():
         click.echo("[Error] Can not find XSRF Token to run your interactive command")
         return
 
+    rpc_code = ""
+    if f:
+        rpc_code = f.read()
+    if code:
+        rpc_code = rpc_code + "\n" + code
+
     query_args = {'module_name': 'default',
-                  'code'       : 'print "hello"',
+                  'code'       : rpc_code,
                   'xsrf_token' : matches[0]}
     data = urllib.urlencode(query_args)
     request = urllib2.Request(url, data)
