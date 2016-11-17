@@ -14,12 +14,16 @@ def gae():
 
 
 @gae.command()
-@click.option('-c', '--code', 'code', nargs=1, type=click.STRING)
-@click.option('-f', '--file', 'f', nargs=1, type=click.File('rb'))
-def interactive(code, f):
+@click.option('-c', '--code', 'code', nargs=1, type=click.STRING,
+              help='e.g. --code print("Hello World")')
+@click.option('-f', '--file', 'f', nargs=1, type=click.File('rb'),
+              help='e.g. --file sample.py')
+@click.option('-s', '--stream', is_flag=True,
+              help='e.g. cat sample.py | python gae.py interactive --stream')
+def interactive(code, f, stream):
     """Run code in dev server's interactive console"""
-    if not code and not f:
-        click.echo("[Error] Use --code or --file\n")
+    if not code and not f and not stream:
+        click.echo("[Error] Use --code or --file or --stream\n")
         return
     url = "http://localhost:8000/console"
     try:
@@ -38,7 +42,9 @@ def interactive(code, f):
     if f:
         rpc_code = f.read()
     if code:
-        rpc_code = rpc_code + "\n" + code
+        rpc_code += "\n" + code
+    if stream:
+        rpc_code += "\n" + click.get_text_stream('stdin').read()
 
     query_args = {'module_name': 'default',
                   'code'       : rpc_code,
