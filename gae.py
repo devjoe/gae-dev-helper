@@ -12,6 +12,13 @@ def gae():
     pass
 
 
+@gae.command()
+@click.option('-p', '--page', 'page', default="",
+              help='e.g. --page console')
+def admin(page):
+    """Launch your GAE admin page in the default browser"""
+    click.launch('http://localhost:8000/' + page)
+
 
 @gae.command()
 @click.option('-c', '--code', 'code', nargs=1, type=click.STRING,
@@ -21,7 +28,7 @@ def gae():
 @click.option('-s', '--stream', is_flag=True,
               help='e.g. cat sample.py | python gae.py interactive --stream')
 def interactive(code, f, stream):
-    """Run code in dev server's interactive console"""
+    """Run your code in dev server's interactive console"""
     if not code and not f and not stream:
         click.echo("[Error] Use --code or --file or --stream\n")
         return
@@ -61,4 +68,3 @@ def interactive(code, f, stream):
 
 if __name__ == '__main__':
     gae()
-

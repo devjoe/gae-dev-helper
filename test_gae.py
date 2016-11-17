@@ -31,3 +31,10 @@ def test_interactive():
     assert "'hello file'" in result.output
     assert "'hello world'" in result.output
     assert "'hello stream'" in result.output
+
+
+def test_admin():
+    runner = CliRunner()
+    result = runner.invoke(gae, ['admin'])
+    assert result.exit_code == 0
+    assert "[Error]" not in result.output
