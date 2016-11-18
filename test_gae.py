@@ -1,4 +1,5 @@
 from click.testing import CliRunner
+import pytest
 
 from gae import gae
 
@@ -43,3 +44,43 @@ def test_admin(mocker):
     result = runner.invoke(gae, ['admin'])
     assert result.exit_code == 0
     assert "[Error]" not in result.output
+
+
+def test_daemon_run_by_args():
+    runner = CliRunner()
+    result = runner.invoke(gae, ['daemon'])
+    assert result.exit_code == 0
+    assert "[Error]" not in result.output
+
+
+def test_daemon_run_by_config():
+    runner = CliRunner()
+    result = runner.invoke(gae, ['daemon', '--config', 'custom_config.py'])
+    assert result.exit_code == 0
+    assert "[Error]" not in result.output
+    url = "http://localhost:8080/"
+    assert urllib2.urlopen(url)
+
+    # successful
+
+def test_daemon_no_gae_sdk_path_in_config(mocker):
+    runner = CliRunner()
+    mocked_get_app_dir = mocker.patch("click.get_app_dir")
+    mocked_get_app_dir.return_value = 'wrong_path_ljdsiew'
+    result = runner.invoke(gae, ['daemon'])
+    assert result.exit_code == 0
+
+
+def test_daemon_can_not_load_config_file(mocker):
+    runner = CliRunner()
+    mocked_get_app_dir = mocker.patch("click.get_app_dir")
+    mocked_get_app_dir.return_value = 'wrong_path_ljdsiew'
+    result = runner.invoke(gae, ['daemon'])
+    assert "[Error]" in result.output
+
+
+def test_daemon_fail_to_start():
+    runner = CliRunner()
+    result = runner.invoke(gae, ['daemon', '--config', 'broken_config.py'])
+    assert "[Error]" in result.output
+
