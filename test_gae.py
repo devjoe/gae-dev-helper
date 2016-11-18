@@ -6,10 +6,6 @@ from gae import gae
 def test_interactive():
     runner = CliRunner()
 
-    result = runner.invoke(gae, ['interactive'])
-    assert result.exit_code == 0
-    assert "[Error]" in result.output
-
     result = runner.invoke(gae, ['interactive', '--code', 'print("\'hello code\'")'])
     assert result.exit_code == 0
     assert "[Error]" not in result.output
@@ -33,7 +29,16 @@ def test_interactive():
     assert "'hello stream'" in result.output
 
 
-def test_admin():
+def test_interactive_not_enough_parameters():
+    runner = CliRunner()
+    result = runner.invoke(gae, ['interactive'])
+    assert result.exit_code == 0
+    assert "[Error]" in result.output
+
+
+def test_admin(mocker):
+    mocked_launch = mocker.patch("click.launch")
+    mocked_launch.return_value = True
     runner = CliRunner()
     result = runner.invoke(gae, ['admin'])
     assert result.exit_code == 0
