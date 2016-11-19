@@ -1,3 +1,4 @@
+from __future__ import print_function
 import sys
 import os
 import time
@@ -14,13 +15,20 @@ else:
 from subprocess import CalledProcessError
 from multiprocessing import Process
 
+
 import click
 from daemonize import Daemonize
+from pygments import highlight
+from pygments.lexers import BashLexer, PythonLexer
+from pygments.formatters import Terminal256Formatter, TerminalFormatter
 
+
+CHECK_SCRIPT = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}'"
+KILL_SCRIPT = CHECK_SCRIPT + " | xargs kill"
 
 
 def is_dev_server_running():
-    out = subprocess.check_output("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}'", shell=True)
+    out = subprocess.check_output(CHECK_SCRIPT, shell=True)
     if out:
         return True
     else:
@@ -34,9 +42,9 @@ def delay_to_show_server_status():
     click.echo("\nPress <Enter> to continue ...")
 
 
-def stop_dev_server():
+def stop_dev_server(kill):
     try:
-        subprocess.check_call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
+        subprocess.check_call(KILL_SCRIPT + "" if not kill else " -9", shell=True)
         click.secho("[Done]", fg="green")
     except CalledProcessError as e:
         click.secho("[Failed]", fg="red")
@@ -59,22 +67,37 @@ def load_config_file(config_path):
 
 
 def run_dev_server(cmd):
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
     while True:
-        output = process.stdout.readline()
-        if output == '' and process.poll() is not None:
+        line = ""
+        is_pdb = False
+        while True:
+            output = process.stdout.read(1)
+            if output != "\n":
+                line += output
+            else:
+                break
+            if line.startswith('(Pdb) '):
+                is_pdb = True
+                break
+        if line:
+            highlight_output = highlight(line.strip(), PythonLexer(), TerminalFormatter(bg="dark"))
+            if is_pdb:
+                print("(Pdb) ", end='')
+            else:
+                click.echo(highlight_output, nl=False)
+        sys.stdout.flush()
+        if line == '' and process.poll() is not None:
             break
-        if output:
-            click.echo(output.strip())
-            sys.stdout.flush()
     return process.poll()
 
 
 def construct_run_server_cmd(cfg, dev_appserver_options):
     if hasattr(cfg, "gae_sdk_path") and cfg.gae_sdk_path:
-        cmd = "cd " + cfg.gae_sdk_path + " && python dev_appserver.py "
+        cmd = "cd " + cfg.gae_sdk_path
     else:
-        cmd = "cd /usr/local/google_appengine && python dev_appserver.py "
+        cmd = "cd /usr/local/google_appengine"
+    cmd += " && python dev_appserver.py "
     if hasattr(cfg, "project_path") and cfg.project_path:
         cmd += cfg.project_path
     if hasattr(cfg, "datastore_path") and cfg.datastore_path:
@@ -91,7 +114,7 @@ def gae():
 
 @gae.command()
 def status():
-    """Is your dev server running?"""
+    """Show running status"""
     if is_dev_server_running():
         click.secho("Dev server is running", fg="green")
     else:
@@ -99,9 +122,11 @@ def status():
 
 
 @gae.command()
-def stop():
+@click.option('-k', '--kill', 'kill', is_flag=True,
+              help='e.g. --kill')
+def stop(kill):
     """Stop your local dev server"""
-    stop_dev_server()
+    stop_dev_server(kill)
 
 
 @gae.command()
