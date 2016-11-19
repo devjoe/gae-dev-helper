@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import shlex
 import urllib
 import urllib2
@@ -10,6 +11,8 @@ if os.name == 'posix' and sys.version_info[0] < 3:
     import subprocess32 as subprocess
 else:
     import subprocess
+from subprocess import CalledProcessError
+from multiprocessing import Process
 
 import click
 from daemonize import Daemonize
@@ -19,10 +22,24 @@ from daemonize import Daemonize
 def is_dev_server_running():
     out = subprocess.check_output("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}'", shell=True)
     if out:
-        click.echo("[Error] Your local dev server is already running")
         return True
     else:
         return False
+
+
+def delay_to_show_server_status():
+    time.sleep(2)
+    click.echo("")
+    subprocess.call("python gae.py status", shell=True)
+    click.echo("\nPress <Enter> to continue ...")
+
+
+def stop_dev_server():
+    try:
+        subprocess.check_call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
+        click.secho("[Done]", fg="green")
+    except CalledProcessError as e:
+        click.secho("[Failed]", fg="red")
 
 
 def load_config_file(config_path):
@@ -74,19 +91,43 @@ def gae():
 
 @gae.command()
 def status():
-    """Check whether your local dev server is running or not"""
+    """Is your dev server running?"""
     if is_dev_server_running():
-        click.secho("Dev Server is running", fg="green")
+        click.secho("Dev server is running", fg="green")
     else:
-        click.secho("Dev Server is stopped", fg="red")
+        click.secho("Dev server is stopped", fg="red")
+
+
+@gae.command()
+def stop():
+    """Stop your local dev server"""
+    stop_dev_server()
 
 
 @gae.command()
 @click.option('-p', '--page', 'page', default="",
               help='e.g. --page console')
 def admin(page):
-    """Launch your GAE admin page in the default browser"""
+    """Launch your GAE admin page in the browser"""
     click.launch('http://localhost:8000/' + page)
+
+
+@gae.command()
+@click.option('-c', '--config', 'config_path', nargs=1, type=click.Path(exists=True),
+              help='e.g. --config config.py')
+@click.argument('dev_appserver_options', nargs=-1)
+def run(config_path, dev_appserver_options):
+    """Run your GAE local dev server"""
+    if is_dev_server_running():
+        click.echo("[Error] Your local dev server is already running")
+        return
+
+    cfg = load_config_file(config_path)
+    if not cfg:
+        return
+
+    cmd = construct_run_server_cmd(cfg, dev_appserver_options)
+    run_dev_server(cmd)
 
 
 @gae.command()
@@ -96,6 +137,7 @@ def admin(page):
 def daemon(config_path, dev_appserver_options):
     """Start your GAE local dev server as a daemon"""
     if is_dev_server_running():
+        click.echo("[Error] Your local dev server is already running")
         return
 
     cfg = load_config_file(config_path)
@@ -103,6 +145,9 @@ def daemon(config_path, dev_appserver_options):
         return
 
     cmd = construct_run_server_cmd(cfg, dev_appserver_options)
+
+    p = Process(target=delay_to_show_server_status, args=())
+    p.start()
 
     daemon = Daemonize(app="gae_helper", pid="/tmp/gae_helper.pid", action=partial(run_dev_server, cmd))
     daemon.start()
@@ -116,7 +161,7 @@ def daemon(config_path, dev_appserver_options):
 @click.option('-s', '--stream', is_flag=True,
               help='e.g. cat sample.py | python gae.py interactive --stream')
 def interactive(code, f, stream):
-    """Run your code in dev server's interactive console"""
+    """Run your code in interactive console"""
     if not code and not f and not stream:
         click.echo("[Error] Use --code or --file or --stream\n")
         return
