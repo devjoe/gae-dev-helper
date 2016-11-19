@@ -7,15 +7,12 @@ import click
 from click.testing import CliRunner
 import pytest
 
-from gae import gae
+from gae import gae, is_dev_server_running
 
 
 @pytest.fixture
 def setup_and_teardown_dev_server():
-    url = "http://localhost:8000/"
-    try:
-        urllib2.urlopen(url)
-    except URLError as e:
+    if not is_dev_server_running():
         subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
         time.sleep(2)
     yield
@@ -25,9 +22,7 @@ def setup_and_teardown_dev_server():
 
 @pytest.fixture
 def teardown_dev_server():
-    url = "http://localhost:8000/"
-    with pytest.raises(URLError):
-        urllib2.urlopen(url)
+    assert is_dev_server_running() is False
     yield
     subprocess.call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
     time.sleep(2)
@@ -78,23 +73,19 @@ def test_admin(mocker):
 def test_daemon_run_by_args(teardown_dev_server):
     subprocess.call("python gae.py daemon -- --port=8080", shell=True)
     time.sleep(2)
-    url = "http://localhost:8000/"
-    urllib2.urlopen(url)
+    assert is_dev_server_running()
 
 
 def test_daemon_run_by_wrong_args(teardown_dev_server):
     subprocess.call("python gae.py daemon -- -ooxx", shell=True)
     time.sleep(2)
-    url = "http://localhost:8000/"
-    with pytest.raises(URLError):
-        urllib2.urlopen(url)
+    assert is_dev_server_running() is False
 
 
 def test_daemon_run_by_config(teardown_dev_server):
     subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
     time.sleep(2)
-    url = "http://localhost:8000/"
-    urllib2.urlopen(url)
+    assert is_dev_server_running()
 
 
 def test_daemon_no_gae_sdk_path_in_config(mocker):
@@ -111,10 +102,3 @@ def test_daemon_can_not_load_config_file(mocker):
     mocked_get_app_dir.return_value = 'wrong_path_ljdsiew'
     result = runner.invoke(gae, ['daemon'])
     assert "[Error]" in result.output
-
-
-def test_daemon_fail_to_start():
-    runner = CliRunner()
-    result = runner.invoke(gae, ['daemon', '--config', 'broken_config.py'])
-    assert "[Error]" in result.output
-
