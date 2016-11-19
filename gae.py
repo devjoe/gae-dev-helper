@@ -11,7 +11,6 @@ if os.name == 'posix' and sys.version_info[0] < 3:
 else:
     import subprocess
 
-
 import click
 from daemonize import Daemonize
 
@@ -31,11 +30,11 @@ def run_dev_server(cmd):
 
 def construct_run_server_cmd(cfg, dev_appserver_options):
     cmd = "cd /usr/local/google_appengine && python dev_appserver.py "
-    if hasattr(cfg, "project_path"):
+    if hasattr(cfg, "project_path") and cfg.project_path:
         cmd += cfg.project_path
-    if hasattr(cfg, "datastore_path"):
+    if hasattr(cfg, "datastore_path") and cfg.datastore_path:
         cmd += " --datastore_path=" + cfg.datastore_path
-    cmd += " ".join(dev_appserver_options)
+    cmd += " " + " ".join(dev_appserver_options)
     return cmd
 
 
@@ -93,8 +92,6 @@ def daemon(config_path, dev_appserver_options):
     daemon.start()
 
 
-
-
 @gae.command()
 @click.option('-c', '--code', 'code', nargs=1, type=click.STRING,
               help='e.g. --code print("Hello World")')
@@ -137,7 +134,6 @@ def interactive(code, f, stream):
     html = response.read()
 
     click.echo(html)
-
 
 
 

@@ -1,10 +1,39 @@
+import time
+import subprocess
+import urllib2
+from urllib2 import URLError
+
+import click
 from click.testing import CliRunner
 import pytest
 
 from gae import gae
 
 
-def test_interactive():
+@pytest.fixture
+def setup_and_teardown_dev_server():
+    url = "http://localhost:8000/"
+    try:
+        urllib2.urlopen(url)
+    except URLError as e:
+        subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
+        time.sleep(2)
+    yield
+    subprocess.call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
+    time.sleep(2)
+
+
+@pytest.fixture
+def teardown_dev_server():
+    url = "http://localhost:8000/"
+    with pytest.raises(URLError):
+        urllib2.urlopen(url)
+    yield
+    subprocess.call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
+    time.sleep(2)
+
+
+def test_interactive(setup_and_teardown_dev_server):
     runner = CliRunner()
 
     result = runner.invoke(gae, ['interactive', '--code', 'print("\'hello code\'")'])
@@ -46,22 +75,27 @@ def test_admin(mocker):
     assert "[Error]" not in result.output
 
 
-def test_daemon_run_by_args():
-    runner = CliRunner()
-    result = runner.invoke(gae, ['daemon'])
-    assert result.exit_code == 0
-    assert "[Error]" not in result.output
+def test_daemon_run_by_args(teardown_dev_server):
+    subprocess.call("python gae.py daemon -- --port=8080", shell=True)
+    time.sleep(2)
+    url = "http://localhost:8000/"
+    urllib2.urlopen(url)
 
 
-def test_daemon_run_by_config():
-    runner = CliRunner()
-    result = runner.invoke(gae, ['daemon', '--config', 'custom_config.py'])
-    assert result.exit_code == 0
-    assert "[Error]" not in result.output
-    url = "http://localhost:8080/"
-    assert urllib2.urlopen(url)
+def test_daemon_run_by_wrong_args(teardown_dev_server):
+    subprocess.call("python gae.py daemon -- -ooxx", shell=True)
+    time.sleep(2)
+    url = "http://localhost:8000/"
+    with pytest.raises(URLError):
+        urllib2.urlopen(url)
 
-    # successful
+
+def test_daemon_run_by_config(teardown_dev_server):
+    subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
+    time.sleep(2)
+    url = "http://localhost:8000/"
+    urllib2.urlopen(url)
+
 
 def test_daemon_no_gae_sdk_path_in_config(mocker):
     runner = CliRunner()
