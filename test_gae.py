@@ -7,25 +7,25 @@ import click
 from click.testing import CliRunner
 import pytest
 
-from gae import gae, is_dev_server_running
+from gae import gae, is_dev_server_running, filter_output, stop_dev_server
 
 
 @pytest.fixture
 def setup_and_teardown_dev_server():
-    if not is_dev_server_running():
-        subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
-        time.sleep(2)
+    assert is_dev_server_running() is False
+    subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
+    time.sleep(3)
     yield
-    subprocess.call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
-    time.sleep(2)
+    stop_dev_server()
+    time.sleep(3)
 
 
 @pytest.fixture
 def teardown_dev_server():
     assert is_dev_server_running() is False
     yield
-    subprocess.call("ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}' | xargs kill", shell=True)
-    time.sleep(2)
+    stop_dev_server()
+    time.sleep(3)
 
 
 def test_interactive(setup_and_teardown_dev_server):
@@ -102,3 +102,11 @@ def test_daemon_can_not_load_config_file(mocker):
     mocked_get_app_dir.return_value = 'wrong_path_ljdsiew'
     result = runner.invoke(gae, ['daemon'])
     assert "[Error]" in result.output
+
+
+def test_filter_output():
+    line = 'INFO     2016-11-19 16:24:45,908 module.py:787] default: "GET /javascript/bootstrap3-package/carousel.js HTTP/1.1" 304 -'
+    class Config(object):
+        filetype_ignore_filter = ['js']
+    cfg = Config()
+    assert filter_output(line, cfg) == ""

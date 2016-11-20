@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 import os
 import time
@@ -12,23 +11,24 @@ if os.name == 'posix' and sys.version_info[0] < 3:
     import subprocess32 as subprocess
 else:
     import subprocess
-from subprocess import CalledProcessError
 from multiprocessing import Process
 
 
 import click
 from daemonize import Daemonize
 from pygments import highlight
-from pygments.lexers import BashLexer, PythonLexer
-from pygments.formatters import Terminal256Formatter, TerminalFormatter
+from pygments.lexers import PythonLexer, HttpLexer
+from pygments.lexers.special import TextLexer
+from pygments.formatters import TerminalFormatter
 
 
-CHECK_SCRIPT = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | grep -v '/bin/sh -c cd' | awk '{print $1}'"
-KILL_SCRIPT = CHECK_SCRIPT + " | xargs kill"
+SH_CHECK_DEV = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | awk '{print $1}'"
+SH_KILL_DEV = SH_CHECK_DEV + " | xargs kill"
+SH_KILL_SELF = "ps -eo pid,command | grep 'python gae.py' | grep -v grep | awk '{print $1}' | xargs kill"
 
 
 def is_dev_server_running():
-    out = subprocess.check_output(CHECK_SCRIPT, shell=True)
+    out = subprocess.check_output(SH_CHECK_DEV, shell=True)
     if out:
         return True
     else:
@@ -42,11 +42,12 @@ def delay_to_show_server_status():
     click.echo("\nPress <Enter> to continue ...")
 
 
-def stop_dev_server(kill):
+def stop_dev_server():
     try:
-        subprocess.check_call(KILL_SCRIPT + "" if not kill else " -9", shell=True)
+        subprocess.call(SH_KILL_SELF, shell=True)
+        subprocess.check_call(SH_KILL_DEV, shell=True)
         click.secho("[Done]", fg="green")
-    except CalledProcessError as e:
+    except subprocess.CalledProcessError as e:
         click.secho("[Failed]", fg="red")
 
 
@@ -66,26 +67,99 @@ def load_config_file(config_path):
         return
 
 
-def run_dev_server(cmd):
+def get_request_filetype(line):
+    regex = r".*module\.py\:\d+\].*\.(.*) HTTP/1\.1"
+    matches = re.findall(regex, line)
+    if not matches:
+        return ""
+    return matches[0]
+
+
+def is_http_request_log(line):
+    regex = r".*module\.py\:\d+\].*?\".*?\" \d+.*"
+    matches = re.findall(regex, line)
+    return True if matches else False
+
+
+def is_server_status_log(line):
+    regex = r".*(admin_server|dispatcher|api_server)\.py\:\d+\] ((?!HTTP/1\.1).)*$"
+    matches = re.findall(regex, line)
+    return True if matches else False
+
+
+def is_user_custom_log(line):
+    regex = r".*\.py\:\d+\] ((?!HTTP/1\.1).)*$"
+    matches = re.findall(regex, line)
+    return True if matches else False
+
+
+def filter_output(line, cfg):
+    if hasattr(cfg, "filetype_ignore_filter") and cfg.filetype_ignore_filter:
+        ft = get_request_filetype(line)
+        if ft in cfg.filetype_ignore_filter:
+            return ""
+    return line.strip()
+
+
+def print_server_status_log(line, cfg):
+    h_line = highlight_log(line, TextLexer(), cfg)
+    click.secho(h_line, nl=False, fg="green")
+
+
+def print_http_request_log(line, cfg):
+    header, body = line.split("]", 1)
+    h_header = highlight_log(header, TextLexer(), cfg).strip() + "] "
+    h_body = highlight_log(body, HttpLexer(), cfg)
+    click.echo(h_header, nl=False)
+    click.echo(h_body, nl=False)
+
+
+def print_user_custom_log(line, cfg):
+    header, body = line.split("]", 1)
+    h_header = highlight_log(header, TextLexer(), cfg).strip() + "] "
+    h_body = highlight_log(body, TextLexer(), cfg)
+    click.echo(h_header, nl=False)
+    click.secho(h_body, nl=False, bold=True)
+
+
+def print_python_code(line, cfg):
+    h_string = highlight_log(line, PythonLexer(), cfg)
+    click.echo(h_string, nl=False)
+
+
+def highlight_log(string, lexer, cfg):
+    if hasattr(cfg, "word_highlight_filter") and cfg.word_highlight_filter:
+        lexer.add_filter("highlight", names=cfg.word_highlight_filter)
+    return highlight(string, lexer, TerminalFormatter(bg="dark"))
+
+
+def run_dev_server(cmd, cfg):
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
     while True:
         line = ""
         is_pdb = False
         while True:
-            output = process.stdout.read(1)
-            if output != "\n":
-                line += output
+            ch = process.stdout.read(1)
+            if ch != "\n":
+                line += ch
             else:
                 break
             if line.startswith('(Pdb) '):
                 is_pdb = True
                 break
+
+        line = filter_output(line, cfg)
         if line:
-            highlight_output = highlight(line.strip(), PythonLexer(), TerminalFormatter(bg="dark"))
             if is_pdb:
-                print("(Pdb) ", end='')
+                click.echo("(Pdb) ", nl=False)
+            elif is_server_status_log(line):
+                print_server_status_log(line, cfg)
+            elif is_http_request_log(line):
+                print_http_request_log(line, cfg)
+            elif is_user_custom_log(line):
+                print_user_custom_log(line, cfg)
             else:
-                click.echo(highlight_output, nl=False)
+                print_python_code(line, cfg)
         sys.stdout.flush()
         if line == '' and process.poll() is not None:
             break
@@ -102,7 +176,7 @@ def construct_run_server_cmd(cfg, dev_appserver_options):
         cmd += cfg.project_path
     if hasattr(cfg, "datastore_path") and cfg.datastore_path:
         cmd += " --datastore_path=" + cfg.datastore_path
-    cmd += " " + " ".join(dev_appserver_options)
+    cmd += " " + " ".join(dev_appserver_options) + " 2>&1"
     return cmd
 
 
@@ -122,11 +196,9 @@ def status():
 
 
 @gae.command()
-@click.option('-k', '--kill', 'kill', is_flag=True,
-              help='e.g. --kill')
-def stop(kill):
+def stop():
     """Stop your local dev server"""
-    stop_dev_server(kill)
+    stop_dev_server()
 
 
 @gae.command()
@@ -152,7 +224,7 @@ def run(config_path, dev_appserver_options):
         return
 
     cmd = construct_run_server_cmd(cfg, dev_appserver_options)
-    run_dev_server(cmd)
+    run_dev_server(cmd, cfg)
 
 
 @gae.command()
@@ -170,11 +242,9 @@ def daemon(config_path, dev_appserver_options):
         return
 
     cmd = construct_run_server_cmd(cfg, dev_appserver_options)
-
     p = Process(target=delay_to_show_server_status, args=())
     p.start()
-
-    daemon = Daemonize(app="gae_helper", pid="/tmp/gae_helper.pid", action=partial(run_dev_server, cmd))
+    daemon = Daemonize(app="gae_helper", pid="/tmp/gae_dev_helper.pid", action=partial(run_dev_server, cmd, cfg))
     daemon.start()
 
 

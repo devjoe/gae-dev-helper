@@ -12,7 +12,5 @@ admin_port = ""
 
 # ===== GAE Helper settings =====
 # [Request Filter]
-file_type_ignore_filter = []
-custom_regex_ignore_filter = []
-custom_regex_highlight_filter = []
-use_time_delimiter = False
+filetype_ignore_filter = []
+word_highlight_filter = []
