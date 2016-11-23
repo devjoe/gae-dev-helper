@@ -128,8 +128,6 @@ def print_python_code(line, cfg):
 
 
 def highlight_log(string, lexer, cfg):
-    if hasattr(cfg, "word_highlight_filter") and cfg.word_highlight_filter:
-        lexer.add_filter("highlight", names=cfg.word_highlight_filter)
     return highlight(string, lexer, TerminalFormatter(bg="dark"))
 
 
