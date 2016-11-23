@@ -202,22 +202,64 @@ def connect_to_dev_server_by_remote_api(cfg, shell):
         remote_entry = cfg.remote_api_path
     else:
         remote_entry = "/_ah/remote_api"
-    click.echo("use: " + remote_entry)
 
     from google.appengine.ext.remote_api import remote_api_stub
     remote_api_stub.ConfigureRemoteApiForOAuth("localhost:8080", remote_entry, secure=False)
 
+    start_shell(shell, globals(), locals())
+
+
+def connect_to_pro_server_by_remote_api(cfg, shell):
+    if hasattr(cfg, "project_id") and cfg.project_id:
+        project_id = cfg.project_id
+    else:
+        click.echo("[Error] Please set project_id in your config file")
+        return
+    if hasattr(cfg, "gae_sdk_path") and cfg.gae_sdk_path:
+        sdk_path = cfg.gae_sdk_path
+    else:
+        sdk_path = "/usr/local/google_appengine"
+
+    os.environ['SERVER_SOFTWARE'] = 'Development (devshell remote-api)/1.0'
+    os.environ['HTTP_HOST'] = 'localhost'
+    os.environ['GAE_SDK_ROOT'] = sdk_path
+    python_path = subprocess.check_output("which python", shell=True)
+    os.environ['PYTHONPATH'] = os.environ["GAE_SDK_ROOT"] + ':' + python_path
+
+    try:
+        import dev_appserver
+        dev_appserver.fix_sys_path()
+    except ImportError:
+        click.echo('Please make sure the App Engine SDK is in your PYTHONPATH.')
+        raise
+
+    if hasattr(cfg, "project_path") and cfg.project_path:
+        path = os.path.abspath(os.path.expanduser(cfg.project_path))
+        sys.path.insert(0, path)
+    if hasattr(cfg, "remote_api_path") and cfg.remote_api_path:
+        remote_entry = cfg.remote_api_path
+    else:
+        remote_entry = "/_ah/remote_api"
+
+    from google.appengine.ext.remote_api import remote_api_stub
+    remote_api_stub.ConfigureRemoteApiForOAuth( '{}.appspot.com'.format(project_id), remote_entry)
+
+    click.secho("\nYou are connecting to the production server, be careful!\n", bold=True, fg="red")
+    start_shell(shell, globals(), locals())
+
+
+def start_shell(shell, g_vars, l_vars):
     try:
         if shell and shell.lower() == "ptpython":
             from ptpython.repl import embed
-            embed(globals(), locals())
+            embed(g_vars, l_vars)
         else:
             import IPython
             IPython.embed()
     except ImportError:
         click.secho("\nInstall ipython or ptpython to have better life!\n", bold=True, fg="green")
         import code
-        code.interact(local=locals())
+        code.interact(local=l_vars)
 
 
 @click.group()
@@ -293,20 +335,23 @@ def daemon(config_path, dev_appserver_options):
               help='e.g. --config config.py')
 @click.option('-d', '--dev', 'dev', is_flag=True,
               help='e.g. --dev')
+@click.option('-p', '--pro', 'pro', is_flag=True,
+              help='e.g. --pro')
 @click.option('-s', '--shell', 'shell', nargs=1, type=click.STRING, default="ipython",
               help='e.g. --shell ptpython \n# default: ipython')
-def remote_api(config_path, dev, shell):
+def remote_api(config_path, dev, pro, shell):
     """Connect to your GAE dev/pro server"""
-    if not is_dev_server_running():
-        click.echo("[Error] Your local dev server is not running")
-        return
-
     cfg = load_config_file(config_path)
     if not cfg:
         return
 
     if dev:
+        if not is_dev_server_running():
+            click.echo("[Error] Your local dev server is not running")
+            return
         connect_to_dev_server_by_remote_api(cfg, shell)
+    elif pro:
+        connect_to_pro_server_by_remote_api(cfg, shell)
     else:
         click.echo("[Error] Use --dev or --pro to specify the server you want to connect")
 
