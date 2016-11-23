@@ -4,10 +4,11 @@ gae_sdk_path = ""
 
 
 # [Optional]
+project_id = ""
 project_path = ""
 datastore_path = ""
 port = ""
-admin_port = ""
+remote_api_path = ""
 
 
 # ===== GAE Helper settings =====
