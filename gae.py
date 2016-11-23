@@ -134,6 +134,8 @@ def highlight_log(string, lexer, cfg):
 
 
 def run_dev_server(cmd, cfg):
+    os.environ['SERVER_SOFTWARE'] = 'Development (devshell remote-api)/1.0'
+    os.environ['HTTP_HOST'] = 'localhost'
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, universal_newlines=True)
     while True:
         line = ""
@@ -178,6 +180,46 @@ def construct_run_server_cmd(cfg, dev_appserver_options):
         cmd += " --datastore_path=" + cfg.datastore_path
     cmd += " " + " ".join(dev_appserver_options) + " 2>&1"
     return cmd
+
+
+def connect_to_dev_server_by_remote_api(cfg, shell):
+    if hasattr(cfg, "gae_sdk_path") and cfg.gae_sdk_path:
+        sdk_path = cfg.gae_sdk_path
+    else:
+        sdk_path = "/usr/local/google_appengine"
+
+    # For transaction
+    os.environ['SERVER_SOFTWARE'] = 'Development (devshell remote-api)/1.0'
+    # For TaskQueue
+    os.environ['HTTP_HOST'] = 'localhost'
+
+    sys.path.append(sdk_path)
+    import dev_appserver
+    dev_appserver.fix_sys_path()
+
+    if hasattr(cfg, "project_path") and cfg.project_path:
+        path = os.path.abspath(os.path.expanduser(cfg.project_path))
+        sys.path.insert(0, path)
+    if hasattr(cfg, "remote_api_path") and cfg.remote_api_path:
+        remote_entry = cfg.remote_api_path
+    else:
+        remote_entry = "/_ah/remote_api"
+    click.echo("use: " + remote_entry)
+
+    from google.appengine.ext.remote_api import remote_api_stub
+    remote_api_stub.ConfigureRemoteApiForOAuth("localhost:8080", remote_entry, secure=False)
+
+    try:
+        if shell and shell.lower() == "ptpython":
+            from ptpython.repl import embed
+            embed(globals(), locals())
+        else:
+            import IPython
+            IPython.embed()
+    except ImportError:
+        click.secho("\nInstall ipython or ptpython to have better life!\n", bold=True, fg="green")
+        import code
+        code.interact(local=locals())
 
 
 @click.group()
@@ -232,7 +274,7 @@ def run(config_path, dev_appserver_options):
               help='e.g. --config config.py')
 @click.argument('dev_appserver_options', nargs=-1)
 def daemon(config_path, dev_appserver_options):
-    """Start your GAE local dev server as a daemon"""
+    """Run your GAE local dev server as a daemon"""
     if is_dev_server_running():
         click.echo("[Error] Your local dev server is already running")
         return
@@ -249,11 +291,34 @@ def daemon(config_path, dev_appserver_options):
 
 
 @gae.command()
+@click.option('-c', '--config', 'config_path', nargs=1, type=click.Path(exists=True),
+              help='e.g. --config config.py')
+@click.option('-d', '--dev', 'dev', is_flag=True,
+              help='e.g. --dev')
+@click.option('-s', '--shell', 'shell', nargs=1, type=click.STRING, default="ipython",
+              help='e.g. --shell ptpython \n# default: ipython')
+def remote_api(config_path, dev, shell):
+    """Connect to your GAE dev/pro server"""
+    if not is_dev_server_running():
+        click.echo("[Error] Your local dev server is not running")
+        return
+
+    cfg = load_config_file(config_path)
+    if not cfg:
+        return
+
+    if dev:
+        connect_to_dev_server_by_remote_api(cfg, shell)
+    else:
+        click.echo("[Error] Use --dev or --pro to specify the server you want to connect")
+
+
+@gae.command()
 @click.option('-c', '--code', 'code', nargs=1, type=click.STRING,
               help='e.g. --code print("Hello World")')
 @click.option('-f', '--file', 'f', nargs=1, type=click.File('rb'),
               help='e.g. --file sample.py')
-@click.option('-s', '--stream', is_flag=True,
+@click.option('-s', '--stream', 'stream', is_flag=True,
               help='e.g. cat sample.py | python gae.py interactive --stream')
 def interactive(code, f, stream):
     """Run your code in interactive console"""
