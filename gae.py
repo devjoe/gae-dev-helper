@@ -26,6 +26,22 @@ SH_CHECK_DEV = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v gr
 SH_KILL_DEV = SH_CHECK_DEV + " | xargs kill"
 SH_KILL_SELF = "ps -eo pid,command | grep 'python gae.py' | grep -v grep | grep -v stop | awk '{print $1}' | xargs kill"
 
+EMPTY_CONFIG = """# ===== GAE dev_appserver.py settings =====
+# [Required]
+gae_sdk_path = ""
+
+
+# [Optional]
+project_id = ""
+project_path = ""
+datastore_path = ""
+port = ""
+remote_api_path = ""
+
+
+# ===== GAE Helper settings =====
+# [Request Filter]
+filetype_ignore_filter = []"""
 
 def is_dev_server_running():
     out = subprocess.check_output(SH_CHECK_DEV, shell=True)
@@ -270,6 +286,26 @@ def start_shell(shell, g_vars, l_vars):
 def gae():
     # before hook
     pass
+
+
+@gae.command()
+@click.confirmation_option(help='Are you sure you want to initialize the config file?')
+def init():
+    """Do initialization and create an config file"""
+    config_path = click.get_app_dir("Gae Helper", force_posix=True)
+    try:
+        os.mkdir(config_path)
+    except OSError as e:
+        pass
+
+    config_file = os.path.join(config_path, "config.py")
+    with open(config_file, 'w') as f:
+        f.write(EMPTY_CONFIG)
+
+    init_file = os.path.join(config_path, "__init__.py")
+    with open(init_file, 'a'):
+        os.utime(init_file, None)
+    click.echo("[Done] Your config file is at {}. Remember to edit it.".format(config_file))
 
 
 @gae.command()
