@@ -24,7 +24,7 @@ from pygments.formatters import TerminalFormatter
 
 SH_CHECK_DEV = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | awk '{print $1}'"
 SH_KILL_DEV = SH_CHECK_DEV + " | xargs kill"
-SH_KILL_SELF = "ps -eo pid,command | grep 'python gae.py' | grep -v grep | awk '{print $1}' | xargs kill"
+SH_KILL_SELF = "ps -eo pid,command | grep 'python gae.py' | grep -v grep | grep -v stop | awk '{print $1}' | xargs kill"
 
 
 def is_dev_server_running():
@@ -44,8 +44,8 @@ def delay_to_show_server_status():
 
 def stop_dev_server():
     try:
-        subprocess.call(SH_KILL_SELF, shell=True)
         subprocess.check_call(SH_KILL_DEV, shell=True)
+        subprocess.call(SH_KILL_SELF, shell=True)
         click.secho("[Done]", fg="green")
     except subprocess.CalledProcessError as e:
         click.secho("[Failed]", fg="red")
