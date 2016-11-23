@@ -202,9 +202,13 @@ def connect_to_dev_server_by_remote_api(cfg, shell):
         remote_entry = cfg.remote_api_path
     else:
         remote_entry = "/_ah/remote_api"
+    if hasattr(cfg, "port") and cfg.port:
+        port = cfg.port
+    else:
+        port = "8080"
 
     from google.appengine.ext.remote_api import remote_api_stub
-    remote_api_stub.ConfigureRemoteApiForOAuth("localhost:8080", remote_entry, secure=False)
+    remote_api_stub.ConfigureRemoteApiForOAuth("localhost:" + port, remote_entry, secure=False)
 
     start_shell(shell, globals(), locals())
 
@@ -286,9 +290,11 @@ def stop():
 @gae.command()
 @click.option('-p', '--page', 'page', default="",
               help='e.g. --page console')
-def admin(page):
+@click.option('-a', '--admin-port', 'admin_port', nargs=1, type=click.STRING, default="8000",
+              help='e.g. --admin-port 1234')
+def admin(page, admin_port):
     """Launch your GAE admin page in the browser"""
-    click.launch('http://localhost:8000/' + page)
+    click.launch('http://localhost:{0}/{1}'.format(admin_port, page))
 
 
 @gae.command()
@@ -363,12 +369,14 @@ def remote_api(config_path, dev, pro, shell):
               help='e.g. --file sample.py')
 @click.option('-s', '--stream', 'stream', is_flag=True,
               help='e.g. cat sample.py | python gae.py interactive --stream')
-def interactive(code, f, stream):
+@click.option('-a', '--admin-port', 'admin_port', nargs=1, type=click.STRING, default="8000",
+              help='e.g. --admin-port 1234')
+def interactive(code, f, stream, admin_port):
     """Run your code in interactive console"""
     if not code and not f and not stream:
         click.echo("[Error] Use --code or --file or --stream\n")
         return
-    url = "http://localhost:8000/console"
+    url = "http://localhost:{}/console".format(admin_port)
     try:
         response = urllib2.urlopen(url)
     except URLError as e:
