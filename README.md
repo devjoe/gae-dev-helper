@@ -18,7 +18,8 @@ In your virtualenv, do:
 pip install gaedevhelper
 ```
 
-> If you want to use remote_api, it's recommanded to install `ipython` or `ptpython`, too.
+> If you want to use remote_api, it's recommanded to install `ipython` or `ptpython`, too.  
+> 
 > If you want to debug by Pdb, it's recommanded to install `rlwrap`. (mac: `brew install rlwrap`)
 
 Then:
@@ -73,4 +74,12 @@ rlwrap gaedh run
 * [ ] Reorder Tests
 * [ ] Support more dev_appserver.py options in config.py
 * [ ] Support php/Go (?)
+
+
+## Credits
+* [Click](click.pocoo.org)
+* [Pygments](pygments.org)
+* [Daemonize](https://github.com/thesharp/daemonize)
+
+
 
