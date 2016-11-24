@@ -24,7 +24,7 @@ from pygments.formatters import TerminalFormatter
 
 SH_CHECK_DEV = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | awk '{print $1}'"
 SH_KILL_DEV = SH_CHECK_DEV + " | xargs kill"
-SH_KILL_SELF = "ps -eo pid,command | grep 'python gae.py' | grep -v grep | grep -v stop | awk '{print $1}' | xargs kill"
+SH_KILL_SELF = "ps -eo pid,command | grep 'python ' | grep 'gae.py' | grep -v grep | grep -v stop | grep -v py.test | awk '{print $1}' | xargs kill"
 
 EMPTY_CONFIG = """# ===== GAE dev_appserver.py settings =====
 # [Required]
@@ -368,7 +368,7 @@ def daemon(config_path, dev_appserver_options):
     cmd = construct_run_server_cmd(cfg, dev_appserver_options)
     p = Process(target=delay_to_show_server_status, args=())
     p.start()
-    daemon = Daemonize(app="gae_helper", pid="/tmp/gae_dev_helper.pid", action=partial(run_dev_server, cmd, cfg))
+    daemon = Daemonize(app="gae_dev_helper", pid="/tmp/gae_dev_helper.pid", action=partial(run_dev_server, cmd, cfg))
     daemon.start()
 
 

@@ -7,13 +7,14 @@ import click
 from click.testing import CliRunner
 import pytest
 
-from gae import gae, is_dev_server_running, filter_output, stop_dev_server
+import gaedevhelper.gae
+from gaedevhelper.gae import gae, is_dev_server_running, filter_output, stop_dev_server
 
 
 @pytest.fixture
 def setup_and_teardown_dev_server():
     assert is_dev_server_running() is False
-    subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
+    subprocess.call("python gaedevhelper/gae.py daemon --config tests/custom_config.py", shell=True)
     time.sleep(3)
     yield
     stop_dev_server()
@@ -36,7 +37,7 @@ def test_interactive(setup_and_teardown_dev_server):
     assert "[Error]" not in result.output
     assert "'hello code'" in result.output
 
-    result = runner.invoke(gae, ['interactive', '--file', 'sample.py'])
+    result = runner.invoke(gae, ['interactive', '--file', 'tests/sample.py'])
     assert result.exit_code == 0
     assert "'hello file'" in result.output
 
@@ -44,7 +45,7 @@ def test_interactive(setup_and_teardown_dev_server):
     assert result.exit_code == 0
     assert "'hello stream'" in result.output
 
-    result = runner.invoke(gae, ['interactive', '--file', 'sample.py',
+    result = runner.invoke(gae, ['interactive', '--file', 'tests/sample.py',
                                                 '--code', 'print("\'hello world\'")',
                                                 '--stream'],
                                 input='print("\'hello stream\'")')
@@ -71,19 +72,19 @@ def test_admin(mocker):
 
 
 def test_daemon_run_by_args(teardown_dev_server):
-    subprocess.call("python gae.py daemon -- --port=8080", shell=True)
+    subprocess.call("python gaedevhelper/gae.py daemon -- --port=8080", shell=True)
     time.sleep(2)
     assert is_dev_server_running()
 
 
 def test_daemon_run_by_wrong_args(teardown_dev_server):
-    subprocess.call("python gae.py daemon -- -ooxx", shell=True)
+    subprocess.call("python gaedevhelper/gae.py daemon -- -ooxx", shell=True)
     time.sleep(2)
     assert is_dev_server_running() is False
 
 
 def test_daemon_run_by_config(teardown_dev_server):
-    subprocess.call("python gae.py daemon --config custom_config.py", shell=True)
+    subprocess.call("python gaedevhelper/gae.py daemon --config tests/custom_config.py", shell=True)
     time.sleep(2)
     assert is_dev_server_running()
 
