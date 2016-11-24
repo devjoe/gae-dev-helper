@@ -24,7 +24,7 @@ from pygments.formatters import TerminalFormatter
 
 SH_CHECK_DEV = "ps -eo pid,command | grep 'python dev_appserver.py' | grep -v grep | awk '{print $1}'"
 SH_KILL_DEV = SH_CHECK_DEV + " | xargs kill"
-SH_KILL_SELF = "ps -eo pid,command | grep 'python ' | grep 'gae.py' | grep -v grep | grep -v stop | grep -v py.test | awk '{print $1}' | xargs kill"
+SH_KILL_SELF = "ps -eo pid,command | grep 'python ' | grep 'gaedh' | grep -v grep | grep -v stop | grep -v py.test | awk '{print $1}' | xargs kill"
 
 EMPTY_CONFIG = """# ===== GAE dev_appserver.py settings =====
 # [Required]
@@ -54,7 +54,7 @@ def is_dev_server_running():
 def delay_to_show_server_status():
     time.sleep(2)
     click.echo("")
-    subprocess.call("python gae.py status", shell=True)
+    subprocess.call("gaedh status", shell=True)
     click.echo("\nPress <Enter> to continue ...")
 
 
@@ -70,7 +70,7 @@ def stop_dev_server():
 def load_config_file(config_path):
     try:
         if not config_path:
-            config_path = click.get_app_dir("Gae Helper", force_posix=True)
+            config_path = click.get_app_dir("Gae Dev Helper", force_posix=True)
             sys.path.insert(0, config_path)
             import config as cfg
         else:
@@ -277,7 +277,7 @@ def start_shell(shell, g_vars, l_vars):
             import IPython
             IPython.embed()
     except ImportError:
-        click.secho("\nInstall ipython or ptpython to have better life!\n", bold=True, fg="green")
+        click.secho("\nInstall ipython or ptpython to have a better life!\n", bold=True, fg="green")
         import code
         code.interact(local=l_vars)
 
@@ -292,7 +292,7 @@ def gae():
 @click.confirmation_option(help='Are you sure you want to initialize the config file?')
 def init():
     """Do initialization and create an config file"""
-    config_path = click.get_app_dir("Gae Helper", force_posix=True)
+    config_path = click.get_app_dir("Gae Dev Helper", force_posix=True)
     try:
         os.mkdir(config_path)
     except OSError as e:
@@ -404,7 +404,7 @@ def remote_api(config_path, dev, pro, shell):
 @click.option('-f', '--file', 'f', nargs=1, type=click.File('rb'),
               help='e.g. --file sample.py')
 @click.option('-s', '--stream', 'stream', is_flag=True,
-              help='e.g. cat sample.py | python gae.py interactive --stream')
+              help='e.g. cat sample.py | gaedh interactive --stream')
 @click.option('-a', '--admin-port', 'admin_port', nargs=1, type=click.STRING, default="8000",
               help='e.g. --admin-port 1234')
 def interactive(code, f, stream, admin_port):
