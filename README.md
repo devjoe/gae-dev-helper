@@ -68,9 +68,9 @@ rlwrap gaedh run
 
 
 ## TODO
-* [o] Debug
-* [o] Documentation
-* [o] Reorder Tests
-* [o] Support more dev_appserver.py options in config.py
-* [o] Support php/Go (?)
+* [] Debug
+* [] Documentation
+* [] Reorder Tests
+* [] Support more dev_appserver.py options in config.py
+* [] Support php/Go (?)
 
