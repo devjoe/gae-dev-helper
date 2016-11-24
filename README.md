@@ -9,7 +9,7 @@ Features:
 * Convenient commands to control dev server. 
   
 Note:
-* **Current release is a debug version. Use with caution.**
+* **Current release is a debug version. Use with caution.** 🔔
   
 ## Installation  
   
@@ -68,9 +68,9 @@ rlwrap gaedh run
 
 
 ## TODO
-* [] Debug
-* [] Documentation
-* [] Reorder Tests
-* [] Support more dev_appserver.py options in config.py
-* [] Support php/Go (?)
+* [ ] Debug
+* [ ] Documentation
+* [ ] Reorder Tests
+* [ ] Support more dev_appserver.py options in config.py
+* [ ] Support php/Go (?)
 
