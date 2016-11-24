@@ -13,7 +13,7 @@ Note:
   
 ## Installation  
   
-1. In your virtualenv, do:
+In your virtualenv, do:
 ```
 pip install gaedevhelper
 ```
@@ -21,13 +21,13 @@ pip install gaedevhelper
 > If you want to use remote_api, it's recommanded to install `ipython` or `ptpython`, too.
 > If you want to debug by Pdb, it's recommanded to install `rlwrap`. (mac: `brew install rlwrap`)
 
-2. Then:
+Then:
 
 ```
 gaedh init
 ```
 
-3. Finally, edit confikikikig.py and fill out it.
+Finally, edit confikikikig.py and fill out it.
 ```
 vim ~/.gae_dev_helper/config.py
 ```
@@ -49,7 +49,7 @@ gaedh remote_api --dev --shell ptpython
   
 ## Usages
 
-1. `--help` is your good friend! You can use:
+`--help` is your good friend! You can use:
 
 ```
 gaedh --help
@@ -61,16 +61,16 @@ gaedh interactive --help
 ...
 ```
 
-2. If your want to debug in Pdb, please use `rlwrap` to wrap `gaedh` to enable c-p c-n c-r ... :
+If your want to debug in Pdb, please use `rlwrap` to wrap `gaedh` to enable c-p c-n c-r ... :
 ```
 rlwrap gaedh run
 ```
 
 
 ## TODO
-[] Debug
-[] Documentation
-[] Reorder Tests
-[] Support more dev_appserver.py options in config.py
-[] Support php/Go (?)
+* [o] Debug
+* [o] Documentation
+* [o] Reorder Tests
+* [o] Support more dev_appserver.py options in config.py
+* [o] Support php/Go (?)
 
