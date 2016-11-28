@@ -28,9 +28,9 @@ Then:
 gaedh init
 ```
 
-Finally, edit confikikikig.py and fill out it.
+Finally, edit config.py and fill out it.
 ```
-vim ~/.gae_dev_helper/config.py
+vim ~/.gae-dev-helper/config.py
 ```
 
 ## Screenshots
